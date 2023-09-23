@@ -1,32 +1,21 @@
+// IMPORTS
 const http = require('http');
 const fs = require('fs');
 const url = require('url');
+const replaceTemplate = require('./modules/replaceTemplate');
 
+// DATA
 const stringJSON = fs.readFileSync(`${__dirname}/dev-data/data.json`, 'utf-8');
 const cardsData = JSON.parse(stringJSON);
 const templateOverview = fs.readFileSync(`${__dirname}/templates/template-overview.html`, 'utf-8');
 const templateCard = fs.readFileSync(`${__dirname}/templates/template-card.html`, 'utf-8');
 const templateProduct = fs.readFileSync(`${__dirname}/templates/template-product.html`, 'utf-8');
 
-const replaceTemplate = function (template, product) {
-    let output = template.replace(/{%PRODUCT_NAME%}/g, product.productName);
-    output = output.replace(/{%IMAGE%}/g, product.image);
-    output = output.replace(/{%PRICE%}/g, product.price);
-    output = output.replace(/{%COUNTRY_ORIGIN%}/g, product.from);
-    output = output.replace(/{%NUTRIENTS%}/g, product.nutrients);
-    output = output.replace(/{%QUANTITY%}/g, product.quantity);
-    output = output.replace(/{%PRODUCT_DESCRIPTION%}/g, product.description);
-    output = output.replace(/{%ID%}/g, product.id);
-    output = output.replace(/{%NOT_ORGANIC%}/g, product.organic ? '' : 'not-organic');
-    return output;
-}
-
 const server = http.createServer((request, response) => {
     const urlRequest = request.url;
-    const urlObject = url.parse(urlRequest, true);
-
+    const { query, pathname: pathName } = url.parse(urlRequest, true);
     // OVERVIEW PAGE
-    if (urlRequest === '/' || urlRequest === '/overview') {
+    if (pathName === '/' || pathName === '/overview') {
         const cardsHTML = cardsData.map(productObjectData => {
             return replaceTemplate(templateCard, productObjectData);
         }).join('');
@@ -37,13 +26,16 @@ const server = http.createServer((request, response) => {
         response.end(overviewPageHTML);
     }
     // PRODUCT PAGE
-    else if (urlRequest.includes('/product?id=')) {
-        const productDataByID = cardsData.find(el => el.id === +urlObject.query.id);
+    else if (pathName === '/product') {
+        const productDataByID = cardsData.find(el => el.id === +query.id);
         const productPageHTML = replaceTemplate(templateProduct, productDataByID);
+        response.writeHead(200, {
+            'Content-Type': 'text/html'
+        })
         response.end(productPageHTML);
     }
     // API
-    else if (urlRequest === '/api') {
+    else if (pathName === '/api') {
         response.writeHead(200, {
             'Content-Type': `application/json`
         })
